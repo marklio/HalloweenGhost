@@ -12,41 +12,49 @@ namespace HalloweenGhost
 {
     public class Program
     {
-        static SerialPort _UART = new SerialPort("COM3", 115200);//, 115200, Parity.None, 8, StopBits.One);
         const int BUFFER_LENGTH = 256;
         static byte[] _Buffer = new byte[BUFFER_LENGTH];
         public static void Main()
         {
-            _UART.ErrorReceived += (s, e) =>
+            var controlData = new ControlData("COM3", 115200);
+            var throttle = new ServoOutput(FEZ_Pin.Digital.Di2);
+            var audio = new Audio(FEZ_Pin.Digital.Di3);
+            var lightPin = new OutputPort((Cpu.Pin)FEZ_Pin.Digital.Di4, false);
+            controlData.PlaySound += () =>
             {
-                Debug.Print("ERROR:"+e.EventType.ToString());
+                audio.Play();
             };
-            _UART.Open();
+            controlData.StopSound += () =>
+            {
+                audio.Stop();
+            };
+            controlData.TurnOnLight += () =>
+            {
+                lightPin.Write(true);
+            };
+            controlData.TurnOffLight += () =>
+            {
+                lightPin.Write(false);
+            };
 
             bool ledState = false;
-
             OutputPort led = new OutputPort((Cpu.Pin)FEZ_Pin.Digital.LED, ledState);
 
-            var outBuffer = Encoding.UTF8.GetBytes("THIS IS A TEST OF THE EMERGENCY BROADCAST SYSTEM");
+            var outBuffer = Encoding.UTF8.GetBytes("ALIVE\r");
 
-            while (true)
+            var decoder = Encoding.UTF8.GetDecoder();
+
+            var aliveTimer = new Timer((o) =>
             {
-                // Sleep for 500 milliseconds
-                if (_UART.BytesToRead > 0)
-                {
-                    var read = _UART.Read(_Buffer, 0, BUFFER_LENGTH);
-
-                    // toggle LED state
-                    ledState = !ledState;
-                    led.Write(ledState);
-                }
-                if (_UART.BytesToWrite == 0)
-                {
-                    _UART.Write(outBuffer, 0, outBuffer.Length);
-                    _UART.Flush();
-                }
-            }
+                controlData.Write(outBuffer, 0, outBuffer.Length);
+            }, null, 0, 1000);
+            var throttleTimer = new Timer((o) =>
+            {
+                throttle.SetPosition(controlData.ThrottlePosition);
+                ledState = !ledState; 
+                led.Write(ledState);
+            }, null, 0, 20);
+            Thread.Sleep(Timeout.Infinite);
         }
-
     }
 }
