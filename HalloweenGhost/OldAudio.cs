@@ -6,6 +6,9 @@ using System.Threading;
 
 namespace HalloweenGhost
 {
+    /// <summary>
+    /// The audio implementation for the sound module
+    /// </summary>
     class OldAudio
     {
         OutputPort _ClockPin;

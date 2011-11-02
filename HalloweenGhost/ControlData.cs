@@ -13,11 +13,26 @@ namespace HalloweenGhost
     /// </summary>
     public class ControlData
     {
+        /// <summary>
+        /// Holds the "current" control state
+        /// </summary>
         byte[] _Data = new byte[5];
+        /// <summary>
+        /// The serial port
+        /// </summary>
         SerialPort _Port;
+        /// <summary>
+        /// The thread reading from the serial port
+        /// </summary>
         Thread _ReaderThread;
+        /// <summary>
+        /// The "last read time" (used to tell if the controller is still sending us data)
+        /// </summary>
         TimeSpan _LastReadTime = TimeSpan.MinValue;
 
+        /// <summary>
+        /// Fires up the serial port and starts recieving data
+        /// </summary>
         public ControlData(string port, int baud)
         {
             _Port = new SerialPort(port, baud, Parity.None, 8, StopBits.One);
@@ -29,22 +44,40 @@ namespace HalloweenGhost
 
         #region Data Members
 
+        /// <summary>
+        /// Fires when we're supposed to play a sound
+        /// </summary>
         public event EventHandler PlaySound;
+        /// <summary>
+        /// Fires when we're supposed to stop playing a sound
+        /// </summary>
         public event EventHandler StopSound;
+        /// <summary>
+        /// Fires when we're supposed to turn on the light
+        /// </summary>
         public event EventHandler TurnOnLight;
+        /// <summary>
+        /// Fires when we're supposed to turn off the light
+        /// </summary>
         public event EventHandler TurnOffLight;
 
         TimeSpan _ConnectionTimeout = TimeSpan.FromTicks(TimeSpan.TicksPerSecond);
+        /// <summary>
+        /// Indicates connectedness
+        /// </summary>
         public bool Connected
         {
             get { return (_LastReadTime != TimeSpan.MinValue) && (Utility.GetMachineTime() - _LastReadTime) < _ConnectionTimeout; }
         }
 
-        byte GetDataByte(int index, byte dflt)
+        /// <summary>
+        /// Gets a byte of data from the current state, or a default value
+        /// </summary>
+        byte GetDataByte(int index, byte defaultValue)
         {
             if (_Data == null || !Connected)
             {
-                return dflt;
+                return defaultValue;
             }
             lock (_Data)
             {
@@ -52,6 +85,9 @@ namespace HalloweenGhost
             }
         }
 
+        /// <summary>
+        /// Gets the current throttle position (or 90 if we're not connected)
+        /// </summary>
         public byte ThrottlePosition
         {
             get
@@ -60,7 +96,11 @@ namespace HalloweenGhost
             }
         }
 
-
+        /// <summary>
+        /// The sound file to play (not used since we aren't using the new module)
+        /// (was the red value when the ghost supported color)
+        /// </summary>
+        [Obsolete]
         byte SoundFile
         {
             get
@@ -87,6 +127,9 @@ namespace HalloweenGhost
             }
         }
 
+        /// <summary>
+        /// Indicates if we requested to turn the sound on (not exposed)
+        /// </summary>
         bool SoundOn
         {
             get
@@ -95,6 +138,9 @@ namespace HalloweenGhost
             }
         }
 
+        /// <summary>
+        /// Indicates if we requested to turn the sound off (not exposed)
+        /// </summary>
         bool SoundStop
         {
             get
@@ -103,6 +149,9 @@ namespace HalloweenGhost
             }
         }
 
+        /// <summary>
+        /// Indicates if we requested to turn the light on (not exposed)
+        /// </summary>
         bool LightOn
         {
             get
@@ -111,6 +160,9 @@ namespace HalloweenGhost
             }
         }
 
+        /// <summary>
+        /// Indicates if we requested to turn the light off (not exposed)
+        /// </summary>
         bool LightOff
         {
             get
@@ -121,12 +173,21 @@ namespace HalloweenGhost
 
         #endregion
 
+        /// <summary>
+        /// Allows writing to the serial port
+        /// </summary>
         public void Write(byte[] buffer, int offset, int count)
         {
             _Port.Write(buffer, offset, count);
         }
 
+        /// <summary>
+        /// Buffer used for reading
+        /// </summary>
         byte[] _ReadArr = new byte[6];
+        /// <summary>
+        /// The implementation of the reader thread
+        /// </summary>
         void Reader()
         {
             _Port.Open();
@@ -154,6 +215,7 @@ namespace HalloweenGhost
                     Array.Copy(_ReadArr, 1, _Data, 0, 5);
                     _LastReadTime = Utility.GetMachineTime();
                 }
+                //fire any events that should be fired
                 if (SoundOn)
                 {
                     var playSound = PlaySound;
